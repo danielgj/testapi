@@ -105,7 +105,7 @@ module.exports = (config, messages, db) => {
       if(nFunctions.isValidPassword(req.body.password,dbPass)) {
               
         const payload = {
-          userid : data._id,                    
+          userid : data.id,                    
           username : data.username,
           role : data.role
         };

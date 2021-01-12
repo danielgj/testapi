@@ -21,7 +21,7 @@ module.exports = (config, messages, db) => {
     .post(jwtM({secret: config.jwtPassword}), function(req, res) {
 
         const userR = req.user;
-        if (!userR || userR.role!='admin') {
+        if (!userR) {
             return res.status(401).send(messages.unauthorized_error);
         }
 
@@ -40,7 +40,7 @@ module.exports = (config, messages, db) => {
 
         const sessionToCreate = {
             id: uuidv4(),
-            owner: userR.id,
+            owner: userR.userid,
             ...bodyReq
         };
         sessions.push(sessionToCreate);
@@ -60,10 +60,10 @@ module.exports = (config, messages, db) => {
             return res.status(401).send(messages.unauthorized_error);
         }
         const sessions = db.get('sessions');
-        return res.status(200).send((sessions || []).filter((s) => s.owner === userR.id));        
+        return res.status(200).send((sessions || []).filter((s) => s.owner === userR.userid));        
     });
     
-    userRouter.route('/:id')    
+    sessionRouter.route('/:id')    
     
     .get(jwtM({secret: config.jwtPassword}), (req,res) => {
             
@@ -74,15 +74,20 @@ module.exports = (config, messages, db) => {
 
             const sessions = db.get('sessions');
 
-            const existingSession = sessions.find((s) => s.id === s.params.id);
+            const existingSession = sessions.find((s) => s.id === req.params.id);
             if (!existingSession) {
               return res.status(404).send({msg: 'Session not found'});
             }
-            if (existingSession.owner !== userR.id) {
+            if (existingSession.owner !== userR.userid) {
                 return res.status(401).send(messages.unauthorized_error);
             }
             return res.status(200).send(existingSession);
           });
+
+
+          // Update
+
+          // Delete
     
     
     
