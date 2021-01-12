@@ -1,6 +1,5 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const status = require('http-status');
 const bodyparser = require('body-parser');
 const _ = require('underscore');
 const userSchema = require('../schemas/user');
@@ -10,7 +9,7 @@ const nFunctions = require('../auxiliar');
 
 module.exports = (config, messages, db) => {
     
-    var userRouter = express.Router();
+    const userRouter = express.Router();
 
     userRouter.use(bodyparser.json());
     userRouter.use(bodyparser.urlencoded({ extended: false }));
@@ -20,7 +19,7 @@ module.exports = (config, messages, db) => {
     ////
     // Create User
     ////
-    .post(function(req,res) {
+    .post((req,res) => {
       const bodyReq = req.body;     
              
       if (!bodyReq) {
@@ -57,8 +56,8 @@ module.exports = (config, messages, db) => {
     ////
     // Get Users
     ////
-    .get(jwtM({secret: config.jwtPassword}), function(req, res) {
-        var userR = req.user;
+    .get(jwtM({secret: config.jwtPassword}), (req, res) => {
+        const userR = req.user;
         if (!userR || userR.role!='admin') {
             return res.status(401).send(messages.unauthorized_error);
         }
@@ -70,7 +69,7 @@ module.exports = (config, messages, db) => {
     
     .get(jwtM({secret: config.jwtPassword}), (req,res) => {
             
-            var userR = req.user;
+            const userR = req.user;
             if (!userR || userR.role!='admin') {
                 return res.status(401).send(messages.unauthorized_error);
             }
@@ -89,7 +88,7 @@ module.exports = (config, messages, db) => {
     // Login
     ////
     userRouter.post('/login', (req,res) => {
-      var bodyReq = req.body;          
+      const bodyReq = req.body;          
 
       if(!bodyReq || !_.has(bodyReq,'email') || !_.has(bodyReq,'password')) {
           return res.status(400).send({ msg: messages.bad_request_msg });

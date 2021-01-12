@@ -128,9 +128,11 @@ const goblinDB = GDB(configParams.dbConfig, err => {
   //Routes
   const indexRouter = require('./routes/index')(messages);
   var userRouter = require('./routes/user')(configParams,messages, goblinDB);
+  var sessionRouter = require('./routes/session')(configParams,messages, goblinDB);
 
   app.use(configParams.base_api_url + '/', indexRouter);
   app.use(configParams.base_api_url + '/user', userRouter);
+  app.use(configParams.base_api_url + '/session', sessionRouter);
 
 
   /**
