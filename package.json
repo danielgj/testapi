@@ -8,15 +8,19 @@
     "node": "~12.0"
   },
   "dependencies": {
+    "@goblindb/goblindb": "^0.1.2",
     "bcryptjs": "2.4.3",
     "body-parser": "^1.19.0",
     "debug": "^2.2.0",
     "express": "^4.17.1",
     "express-jwt": "~3.0.1",
     "http-status": "0.1.8",
-    "pug": "^3.0.0",
+    "joi": "^17.3.0",
     "jsonwebtoken": "~5.0.4",
-    "reformed": "^0.1.1"
+    "pug": "^3.0.0",
+    "reformed": "^0.1.1",
+    "underscore": "^1.12.0",
+    "uuid": "^8.3.2"
   },
   "scripts": {
     "start": "node server.js"

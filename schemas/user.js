@@ -1,30 +1,15 @@
-var mongoose = require('mongoose');
+const Joi = require('joi');
 
-var Schema = mongoose.Schema;
-
-var userSchema = {
-    username: {
-      type: String,
-      required: true,
-      lowercase: true
-    },
-    password: {
-      type: String,
-      required: true
-    },
-    email: {
-      type: String,
-      required: false
-    },
-    role: {
-      type: String,
-      enum: ['developer','admin']
-    }
-};
-
-var schema = new mongoose.Schema(userSchema, {timestamps: true});
-
-schema.index({ name: 'username' });
-
-module.exports = schema;
-module.exports.userSchema = userSchema;
+module.exports = Joi.object({
+  username: Joi.string()
+      .alphanum()
+      .min(3)
+      .max(30)
+      .required(),
+  password: Joi.string()
+      .required()
+      .pattern(new RegExp('^[a-zA-Z0-9]{3,30}$')),
+  email: Joi.string()
+      .required()
+      .email({ minDomainSegments: 2, tlds: { allow: ['com', 'net'] } })
+});

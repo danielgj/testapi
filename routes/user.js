@@ -1,12 +1,14 @@
-var express = require('express');
-var status = require('http-status');
-var bodyparser = require('body-parser');
-var _ = require('underscore');
-var jwt = require('jsonwebtoken');
-var jwtM = require('express-jwt');
-var nFunctions = require('../auxiliar');
+const express = require('express');
+const { v4: uuidv4 } = require('uuid');
+const status = require('http-status');
+const bodyparser = require('body-parser');
+const _ = require('underscore');
+const userSchema = require('../schemas/user');
+const jwt = require('jsonwebtoken');
+const jwtM = require('express-jwt');
+const nFunctions = require('../auxiliar');
 
-module.exports = function(wagner, config, messages) {
+module.exports = (config, messages, db) => {
     
     var userRouter = express.Router();
 
@@ -15,56 +17,40 @@ module.exports = function(wagner, config, messages) {
     
     userRouter.route('/')
     
-    
     ////
     // Create User
     ////
     .post(function(req,res) {
-        
-
-          return wagner.invoke(function(User) {
-
-            var bodyReq = req.body;     
+      const bodyReq = req.body;     
              
-            if(!bodyReq || !_.has(bodyReq,'username') || !_.has(bodyReq,'password') || !_.has(bodyReq,'email') || !_.has(bodyReq,'role')) {
-              return res.status(400).send({ msg: messages.bad_request_msg });
-            } else {
-              return User.findOne({username: bodyReq.username}, function (err, data) {
-
-                    if(err) {
-                      console.log(err);
-                      return res.status(500).json({ msg: messages.internal_server_error });
-                    } else {
-                        if(data) {
-                            //User exists
-                            return res.status(404).json({msg: 'el usuario ya existe'});
-                        } else {
-
-                            return wagner.invoke(function(User) {
-                                var userToCreate = {
-                                    username: bodyReq.username,
-                                    password: nFunctions.createHash(bodyReq.password),
-                                    email: bodyReq.email,
-                                    role: bodyReq.role
-                                };
-
-
-                                return User.create(userToCreate, function(err,data) {
-                                    if(err) {
-                                          console.log(err);
-                                          return res.status(500).json({ msg: 'Internal Server Error' });
-                                    } else {
-                                          return res.status(201).json(data);
-                                    }                
-                                });
-                            });
-                      }
-                  }
-            });
-        
-            }
-       });
+      if (!bodyReq) {
+        return res.status(400).send({ msg: messages.bad_request_msg });
+      }
       
+      const { inputError, value } = userSchema.validate(bodyReq);
+      if (inputError) {
+        return res.status(400).send(inputError);
+      }
+
+      const users = db.get('users');
+
+      const existingUser = users.find((user) => user.username === bodyReq.username);
+      if (existingUser) {
+        return res.status(400).send({msg: 'User already exists'});
+      }
+
+      const userToCreate = {
+        id: uuidv4(),
+        username: bodyReq.username,
+        password: nFunctions.createHash(bodyReq.password),
+        email: bodyReq.email,
+        role: 'agent'
+      };
+      users.push(userToCreate);
+      db.set(users, 'users');
+      
+      // No validation error, check if user exists in DB
+      return res.status(201).send({msg: 'User created'});
       
     })
 
@@ -72,221 +58,72 @@ module.exports = function(wagner, config, messages) {
     // Get Users
     ////
     .get(jwtM({secret: config.jwtPassword}), function(req, res) {
-    
         var userR = req.user;
         if (!userR || userR.role!='admin') {
             return res.status(401).send(messages.unauthorized_error);
-        } else {
-            return wagner.invoke(function(User) {
-                User.
-                find().
-                exec(nFunctions.handleOne.bind(null, 'users', res));                
-                        
-            });                
-        }        
+        }
+        const users = db.get('users');
+        return res.status(200).send(users);        
     });
     
     userRouter.route('/:id')    
     
-    .delete(jwtM({secret: config.jwtPassword}), wagner.invoke(function(User) {
-        
-        return function(req,res) {
+    .get(jwtM({secret: config.jwtPassword}), (req,res) => {
             
-            var userR = req.user.role;
-            if (userR!='adminuser') {
+            var userR = req.user;
+            if (!userR || userR.role!='admin') {
                 return res.status(401).send(messages.unauthorized_error);
-            } else {
-
-                
-                      return User.remove({_id: req.params.id}, function(err,data) {
-                            if(err) {
-                                return res.status(500).json({ msg: 'Internal Server Error' });
-                            } else {
-                                return res.status(201).json(data);
-                            }                
-                      });
-
             }
 
-        };
+            const users = db.get('users');
 
-    }));
-    
-    
-    userRouter.route('/changepass/:id')
-    
-    ////
-    // Update User Password
-    ////
-    .put(jwtM({secret: config.jwtPassword}), wagner.invoke(function(User) {
-        
-        return function(req,res) {
-            
-            var userR = req.user.role;
-            if (userR!='adminuser') {
-                return res.status(401).send(messages.unauthorized_error);
-            } else {
-
-                var bodyReq = req.body;          
-
-                if(!bodyReq || !_.has(bodyReq,'password')) {            
-                  return res.status(400).send({ msg: messages.bad_request_msg });
-                } else {
-
-                    var userToUpdate = {
-                        password: nFunctions.createHash(bodyReq.password)
-                    };
-                    
-                    return User.update({_id: req.params.id}, userToUpdate, {upsert: true}, function(err,data) {
-                        if(err) {
-                            return res.status(500).json({ msg: 'Internal Server Error' });
-                        } else {
-                            return res.status(201).json(data);
-                        }                
-                    });
-
-               }
+            const existingUser = users.find((user) => user.id === req.params.id);
+            if (!existingUser) {
+              return res.status(404).send({msg: 'User not found'});
             }
-
-        };
-
-    }))
-      
+            return res.status(200).send(existingUser);
+          });
+    
     
     ////
     // Login
     ////
-    userRouter.post('/login', wagner.invoke(function(User) {
+    userRouter.post('/login', (req,res) => {
+      var bodyReq = req.body;          
 
-      return function(req,res) {
-
-        var bodyReq = req.body;          
-
-        if(!bodyReq || !_.has(bodyReq,'user') || !_.has(bodyReq,'password')) {
+      if(!bodyReq || !_.has(bodyReq,'email') || !_.has(bodyReq,'password')) {
           return res.status(400).send({ msg: messages.bad_request_msg });
-        } else {
+      }
 
-          return User.
-           findOne({username: req.body.user}).
-           populate('applications').
-           exec( function (err, data) {
-
-            if(err) {
-              return res.status(500).json({ msg: messages.internal_server_error });
-            } else {
-                if(!data) {
-                    //User not exists
-                    return res.status(404).json({msg: messages.user_not_found_msg});
-                } else {
-                    //Check pass
-                    var dbPass = data.password;
-                                                                                
-                    if(nFunctions.isValidPassword(req.body.password,dbPass)) {
-                          
-
-                                  
-                                  var payload = {
-                                        userid : data._id,                    
-                                        username : data.username,
-                                        role : data.role};
-
-                                  var token = jwt.sign(payload, config.jwtPassword, { expiresInMinutes: config.jwtTokenExpiresIn });
-
-                                  var payloadRefresh = {
-                                          userid : data._id,
-                                          username : data.username,                                          
-                                          role : data.role,
-                                          token: token};
-
-                                  var refresh = jwt.sign(payloadRefresh, config.jwtPassword, { expiresInMinutes: config.jwtrefreshExpiresIn });
-                                  
-                                  return res.status(200).json({
-                                    userid: data._id,
-                                    token: token,
-                                    refresh: refresh});
-
-                    } else {
-                                return res.status(401).json({ msg: messages.bad_pwd_msg });
-                    }
-                    
-
-                    
-                }
-            }
+      const users = db.get('users');
+      const data = users.find((user) => user.email === bodyReq.email);
+      if (!data) {
+        //User not exists
+        return res.status(404).json({msg: messages.user_not_found_msg});
+      }
+      
+      var dbPass = data.password;                                                                              
+      if(nFunctions.isValidPassword(req.body.password,dbPass)) {
+              
+        const payload = {
+          userid : data._id,                    
+          username : data.username,
+          role : data.role
+        };
+        const token = jwt.sign(payload, config.jwtPassword, { expiresInMinutes: config.jwtTokenExpiresIn });
+    
+        return res.status(200).json({
+          userid: data.id,
+          token: token
         });
-       }
 
-       };
+    } else {
+      return res.status(401).json({ msg: messages.bad_pwd_msg });
+    }
 
-       }))
- 
-
-    ////
-    // Refresh
-    ////
-    userRouter.post('/refresh', wagner.invoke(function(User) {
-
-        return function(req,res) { 
-            
-          var refresh = req.body.refresh;
-
-          jwt.verify(refresh,config.jwtPassword, function(err, decoded) {
-
-            if(err==null) {
-
-              return User.findOne({_id: decoded.userid}, function (err, data) {
-
-                if(err) {
-                  return res.status(500).json({ msg: messages.internal_server_error });
-                } else {
-                  if(!data) {
-                    //User not exists
-                    return res.status(404).json({msg: messages.user_not_found_msg});
-                  } else {
-
-                    var payload = {
-                        userid : data._id,                    
-                        username : data.username,
-                        role : data.role};
-
-                        var token = jwt.sign(payload, config.jwtPassword, { expiresInMinutes: config.jwtTokenExpiresIn });
-
-                        var payloadRefresh = {
-                          userid : data._id,
-                          username : data.username,
-                          role : data.role,
-                          token: token};
-
-                          var refresh = jwt.sign(payloadRefresh, config.jwtPassword, { expiresInMinutes: config.jwtrefreshExpiresIn });
-
-                          return res.status(200).json({
-                            userid: data._id,
-                            username : data.username,
-                            role: data.role,
-                            token: token,
-                            refresh: refresh});
-
-                        }
-                      }
-                    });
-
-                  } else {
-                    if(err.message==messages.invalid_signature_error) {
-                      res.status(401).send(messages.unauthorized_error);
-                    } else if(err.message==messages.jwt_expired_error) {
-                      res.status(449).send(messages.refresh_expired_msg);
-                    } else {
-                      res.status(500).send(messages.unexpected_error);
-                    }
-                  }
-                });
-         
-        }
-    
-    }));      
-    
-    
-    return userRouter;
+  });
+  
+  return userRouter;
     
 }
 

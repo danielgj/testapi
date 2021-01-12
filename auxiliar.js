@@ -2,7 +2,7 @@
 // Funciones Auxiliares
 ///////
 
-var bCrypt = require('bcrypt-nodejs');
+var bCrypt = require('bcryptjs');
 
 
 module.exports = {

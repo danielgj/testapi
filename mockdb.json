@@ -1,0 +1,12 @@
+{
+    "users": [
+        {
+            "id": "6a41671c-b31c-4d4f-b91c-70cfed41ce1e",
+            "username": "admin",
+            "password": "$2a$10$2qmAZXlZMEOk8asEIbsVNeq3lWpdX4Lf7JhfdidKyc.cohW5cPgry",
+            "email": "admin@api.com",
+            "role": "admin"
+        }
+    ],
+    "sessions": []
+}

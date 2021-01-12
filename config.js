@@ -3,4 +3,7 @@ module.exports = {
     jwtPassword: 'FakeS3cr3t',
     jwtTokenExpiresIn: 60*8,
     jwtrefreshExpiresIn: 120,
+    dbConfig: {
+        fileName: 'mockdb'
+    },
 }
